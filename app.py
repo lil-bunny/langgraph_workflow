@@ -117,9 +117,9 @@ async def stream_response(message: str, id: str):
 
                 # Format the response as SSE
                 if event['metadata'].get('langgraph_node') == 'summarizer':
-                    print("--------------------------------------babar-----------------------------------------------")
+                    print("-------------------------------------------------------------------------------------")
                     print(f"{content}")
-                    print("--------------------------------------babar-----------------------------------------------")
+                    print("-------------------------------------------------------------------------------------")
                     yield f"data: {json.dumps({'summary': content})}\n\n"
                 else:
                     yield f"data: {json.dumps({'question': content})}\n\n"
@@ -147,7 +147,7 @@ async def resume(id: str = Query(..., description="Thread ID")):
     """
     return resume_question(id)
 
-@app.get("/process_node")
+@app.get("/analyze-resume")
 async def process_node(
     id: str = Query(..., description="Thread ID"),
     message: str = Query(..., description="Message to process")

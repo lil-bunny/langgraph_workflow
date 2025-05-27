@@ -54,9 +54,9 @@ GET /resume_question?id=<thread_id>
 }
 ```
 
-### 2. Process Resume with Streaming
+### 2. Analyze Resume with Streaming
 ```bash
-GET /process_node?id=<thread_id>&message=<resume_text>
+GET /analyze-resume?id=<thread_id>&message=<resume_text>
 ```
 
 **Response:** Server-Sent Events (SSE) stream containing:
@@ -92,9 +92,10 @@ uvicorn app:app --reload
 curl "http://localhost:8000/resume_question?id=123"
 ```
 
-2. Process resume with streaming:
+2. Analyze resume with streaming:
 ```bash
-curl -N "http://localhost:8000/process_node?id=123&message=John%20Doe%20Software%20Engineer..."
+# URL encode the resume text
+curl -N "http://localhost:8000/analyze-resume?id=123&message=John%20Doe%20Software%20Engineer%20with%205%20years%20of%20experience..."
 ```
 
 ### Using JavaScript
@@ -105,9 +106,11 @@ const response = await fetch('http://localhost:8000/resume_question?id=123');
 const data = await response.json();
 console.log(data.question);
 
-// Process resume with streaming
+// Analyze resume with streaming
+const resumeText = "John Doe\nSoftware Engineer\n5 years of experience...";
+const encodedResume = encodeURIComponent(resumeText);
 const eventSource = new EventSource(
-  'http://localhost:8000/process_node?id=123&message=John%20Doe%20Software%20Engineer...'
+  `http://localhost:8000/analyze-resume?id=123&message=${encodedResume}`
 );
 
 eventSource.onmessage = (event) => {
@@ -117,6 +120,12 @@ eventSource.onmessage = (event) => {
   } else if (data.question) {
     console.log('Question:', data.question);
   }
+};
+
+// Handle errors
+eventSource.onerror = (error) => {
+  console.error('EventSource failed:', error);
+  eventSource.close();
 };
 ```
 
