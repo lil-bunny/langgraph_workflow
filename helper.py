@@ -2,8 +2,7 @@ import os
 from dotenv import load_dotenv
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import START, StateGraph
-from langgraph.prebuilt import tools_condition, ToolNode
-# from IPython.display import Image, display
+
 from langchain.output_parsers import PydanticOutputParser
 from langchain_core.prompts import PromptTemplate
 from langgraph.graph import MessagesState
@@ -18,7 +17,7 @@ load_dotenv()
 class ResumeGraph:
     def __init__(self):
         self.llm = ChatGoogleGenerativeAI(
-            model="gemini-2.0-flash",
+    model="gemini-2.0-flash",
             temperature=0.2,
             max_retries=5,
             google_api_key=os.getenv("GOOGLE_API_KEY"),
@@ -74,6 +73,7 @@ class ResumeGraph:
         """)
         res = self.output_parser_resume_insights.parse(response.content)
         state.resume_insights = res
+        
         return state
 
     def generate_question(self, state: ResumeMode):

@@ -56,8 +56,13 @@ GET /resume_question?id=<thread_id>
 
 ### 2. Analyze Resume with Streaming
 ```bash
-GET /analyze-resume?id=<thread_id>&message=<resume_text>
+POST /analyze-resume?id=<thread_id>
+Content-Type: multipart/form-data
 ```
+
+**Request Body:**
+- `file`: PDF resume file (required)
+- `id`: Thread ID (required, query parameter)
 
 **Response:** Server-Sent Events (SSE) stream containing:
 ```json
@@ -94,8 +99,9 @@ curl "http://localhost:8000/resume_question?id=123"
 
 2. Analyze resume with streaming:
 ```bash
-# URL encode the resume text
-curl -N "http://localhost:8000/analyze-resume?id=123&message=John%20Doe%20Software%20Engineer%20with%205%20years%20of%20experience..."
+curl -N -X POST "http://localhost:8000/analyze-resume?id=123" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@/path/to/resume.pdf"
 ```
 
 ### Using JavaScript
@@ -107,11 +113,18 @@ const data = await response.json();
 console.log(data.question);
 
 // Analyze resume with streaming
-const resumeText = "John Doe\nSoftware Engineer\n5 years of experience...";
-const encodedResume = encodeURIComponent(resumeText);
+const formData = new FormData();
+formData.append('file', pdfFile); // pdfFile is a File object from input[type="file"]
+
 const eventSource = new EventSource(
-  `http://localhost:8000/analyze-resume?id=123&message=${encodedResume}`
+  `http://localhost:8000/analyze-resume?id=123&file=${encodeURIComponent(pdfFile.name)}`
 );
+
+// Send the file using fetch
+await fetch(`http://localhost:8000/analyze-resume?id=123`, {
+  method: 'POST',
+  body: formData
+});
 
 eventSource.onmessage = (event) => {
   const data = JSON.parse(event.data);

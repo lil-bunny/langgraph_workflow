@@ -1,9 +1,11 @@
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from model import *
 from helper import ResumeGraph
 import json
+import PyPDF2
+import io
 
 app = FastAPI(title="Interview ai")
 
@@ -18,6 +20,38 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+def extract_text_from_pdf(pdf_file: UploadFile) -> str:
+    """
+    Extract text from a PDF file.
+    
+    Args:
+        pdf_file (UploadFile): The uploaded PDF file
+        
+    Returns:
+        str: Extracted text from all pages of the PDF
+        
+    Raises:
+        HTTPException: If the file is not a valid PDF or if there's an error reading it
+    """
+    try:
+        # Read the PDF file content
+        content = pdf_file.file.read()
+        
+        # Create a PDF reader object
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(content))
+        
+        # Extract text from all pages
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
+            
+        return text.strip()
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error processing PDF: {str(e)}")
+    finally:
+        pdf_file.file.close()
 
 def get_config(id: str) -> dict:
     """
@@ -147,22 +181,23 @@ async def resume(id: str = Query(..., description="Thread ID")):
     """
     return resume_question(id)
 
-@app.get("/analyze-resume")
+@app.post("/analyze-resume")
 async def process_node(
     id: str = Query(..., description="Thread ID"),
-    message: str = Query(..., description="Message to process")
+    file: UploadFile = File(..., description="PDF resume file to process")
 ):
     """
-    Process a message through the graph with streaming output.
+    Process a PDF resume through the graph with streaming output.
     
     This endpoint:
-    1. Takes a thread ID and message as query parameters
-    2. Processes the message through the graph
-    3. Streams the results in real-time using Server-Sent Events
+    1. Takes a thread ID and PDF file as input
+    2. Extracts text from the PDF
+    3. Processes the text through the graph
+    4. Streams the results in real-time using Server-Sent Events
     
     Args:
         id (str): The thread ID to use for state management
-        message (str): The message to process
+        file (UploadFile): The PDF resume file to process
         
     Returns:
         StreamingResponse: A streaming response containing:
@@ -170,8 +205,16 @@ async def process_node(
             - Generated questions
             - Error messages
     """
+    # Validate file type
+    if not file.filename.lower().endswith('.pdf'):
+        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+    
+    # Extract text from PDF
+    resume_text = extract_text_from_pdf(file)
+    
+    # Process the extracted text
     return StreamingResponse(
-        stream_response(message, id),
+        stream_response(resume_text, id),
         media_type="text/event-stream",
         headers={
             'Cache-Control': 'no-cache',
