@@ -181,7 +181,7 @@ async def resume(id: str = Query(..., description="Thread ID")):
     """
     return resume_question(id)
 
-@app.post("/analyze-resume")
+@app.post("/analyze-resume-pdf")
 async def process_node(
     id: str = Query(..., description="Thread ID"),
     file: UploadFile = File(..., description="PDF resume file to process")
@@ -213,6 +213,39 @@ async def process_node(
     resume_text = extract_text_from_pdf(file)
     
     # Process the extracted text
+    return StreamingResponse(
+        stream_response(resume_text, id),
+        media_type="text/event-stream",
+        headers={
+            'Cache-Control': 'no-cache',
+            'Connection': 'keep-alive',
+            'X-Accel-Buffering': 'no'
+        }
+    )
+
+@app.post("/analyze-resume")
+async def analyze_resume_text(
+    id: str = Query(..., description="Thread ID"),
+    resume_text: str = Query(..., description="Resume text to process")
+):
+    """
+    Process resume text through the graph with streaming output.
+    
+    This endpoint:
+    1. Takes a thread ID and resume text as input
+    2. Processes the text through the graph
+    3. Streams the results in real-time using Server-Sent Events
+    
+    Args:
+        id (str): The thread ID to use for state management
+        resume_text (str): The resume text to process
+        
+    Returns:
+        StreamingResponse: A streaming response containing:
+            - Summary content
+            - Generated questions
+            - Error messages
+    """
     return StreamingResponse(
         stream_response(resume_text, id),
         media_type="text/event-stream",

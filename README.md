@@ -54,9 +54,24 @@ GET /resume_question?id=<thread_id>
 }
 ```
 
-### 2. Analyze Resume with Streaming
+### 2. Analyze Resume with Streaming (Text)
 ```bash
-POST /analyze-resume?id=<thread_id>
+POST /analyze-resume?id=<thread_id>&resume_text=<resume_text>
+```
+
+**Parameters:**
+- `id`: Thread ID (required, query parameter)
+- `resume_text`: Resume text to process (required, query parameter)
+
+**Response:** Server-Sent Events (SSE) stream containing:
+```json
+{"summary": "Candidate has 5 years of experience..."}
+{"question": "How did you handle the migration to microservices?"}
+```
+
+### 3. Analyze Resume with Streaming (PDF)
+```bash
+POST /analyze-resume-pdf?id=<thread_id>
 Content-Type: multipart/form-data
 ```
 
@@ -97,9 +112,14 @@ uvicorn app:app --reload
 curl "http://localhost:8000/resume_question?id=123"
 ```
 
-2. Analyze resume with streaming:
+2. Analyze resume with streaming (Text):
 ```bash
-curl -N -X POST "http://localhost:8000/analyze-resume?id=123" \
+curl -N -X POST "http://localhost:8000/analyze-resume?id=123&resume_text=John%20Doe%20Software%20Engineer%20with%205%20years%20of%20experience..."
+```
+
+3. Analyze resume with streaming (PDF):
+```bash
+curl -N -X POST "http://localhost:8000/analyze-resume-pdf?id=123" \
   -H "Content-Type: multipart/form-data" \
   -F "file=@/path/to/resume.pdf"
 ```
@@ -112,21 +132,30 @@ const response = await fetch('http://localhost:8000/resume_question?id=123');
 const data = await response.json();
 console.log(data.question);
 
-// Analyze resume with streaming
+// Analyze resume with streaming (Text)
+const resumeText = "John Doe\nSoftware Engineer\n5 years of experience...";
+const encodedResume = encodeURIComponent(resumeText);
+
+const textEventSource = new EventSource(
+  `http://localhost:8000/analyze-resume?id=123&resume_text=${encodedResume}`
+);
+
+// Analyze resume with streaming (PDF)
 const formData = new FormData();
 formData.append('file', pdfFile); // pdfFile is a File object from input[type="file"]
 
-const eventSource = new EventSource(
-  `http://localhost:8000/analyze-resume?id=123&file=${encodeURIComponent(pdfFile.name)}`
+const pdfEventSource = new EventSource(
+  `http://localhost:8000/analyze-resume-pdf?id=123&file=${encodeURIComponent(pdfFile.name)}`
 );
 
 // Send the file using fetch
-await fetch(`http://localhost:8000/analyze-resume?id=123`, {
+await fetch(`http://localhost:8000/analyze-resume-pdf?id=123`, {
   method: 'POST',
   body: formData
 });
 
-eventSource.onmessage = (event) => {
+// Handle messages for both PDF and text analysis
+const handleMessage = (event) => {
   const data = JSON.parse(event.data);
   if (data.summary) {
     console.log('Summary:', data.summary);
@@ -135,11 +164,18 @@ eventSource.onmessage = (event) => {
   }
 };
 
+textEventSource.onmessage = handleMessage;
+pdfEventSource.onmessage = handleMessage;
+
 // Handle errors
-eventSource.onerror = (error) => {
+const handleError = (error) => {
   console.error('EventSource failed:', error);
-  eventSource.close();
+  textEventSource.close();
+  pdfEventSource.close();
 };
+
+textEventSource.onerror = handleError;
+pdfEventSource.onerror = handleError;
 ```
 
 ## Error Handling
