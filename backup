@@ -1,0 +1,25 @@
+def resume_question(id: str):
+    config = get_config(id)
+    current_state_dict = graph.get_state(config).values
+    print("Current state (dict):", current_state_dict)
+
+    # Convert the dictionary to a ResumeMode object
+    current_state = ResumeMode(**current_state_dict)
+
+    # Call the generate_question node function with the ResumeMode object
+    updated_state = resume_processor.generate_question(current_state)
+
+    # Update the state in the checkpointer
+    graph.update_state(config, updated_state.dict(), as_node="generate_question")
+
+    # Retrieve and print the updated state
+    updated_state_values = graph.get_state(config).values
+    print(f"_____________________________{updated_state_values.get('interview_question_list')}")
+    last_question="No questions generated yet"
+    if updated_state_values.get('interview_question_list'):
+        last_question = updated_state_values['interview_question_list'][-1]
+    if isinstance(last_question, dict) and 'question' in last_question:
+        return last_question['question']
+    return str(last_question)
+   
+    return updated_state_values['interview_question_list'][len(updated_state_values['interview_question_list'])-1]['question']
